@@ -1,34 +1,24 @@
-# Install necessary packages
-!pip install pyngrok streamlit
-
 import os
 import cv2
 import numpy as np
+import streamlit as st
 from sklearn.model_selection import train_test_split
 from keras.applications import MobileNetV2
 from keras import layers, models
-from google.colab import drive
 from pyngrok import ngrok
-import streamlit as st
 from PIL import Image
-import threading
+import subprocess
 
-# Set your ngrok authtoken (VERY IMPORTANT)
-ngrok.set_auth_token("2wLyUiEuliGlvsNtGoNyaELsc5g_3SGeKVXQbzP7dNDvZLJZC")  # <-- PUT YOUR TOKEN HERE
-
-# 1. Mount Google Drive
-drive.mount('/content/drive')
-
-# 2. Define Paths
-dataset_path = "/content/drive/My Drive/dataset"
-train_folder = "/content/drive/My Drive/pro_dataset/train"
-test_folder = "/content/drive/My Drive/pro_dataset/test"
+# 🚀 SET DATASET PATH (Update this as needed)
+dataset_path = "dataset"
+train_folder = "pro_dataset/train"
+test_folder = "pro_dataset/test"
 
 # Create folders if they don't exist
 os.makedirs(train_folder, exist_ok=True)
 os.makedirs(test_folder, exist_ok=True)
 
-# 3. Load images and assign labels
+# ✅ 1. Load images and assign labels
 def load_images_and_labels(dataset_path, limit=500):
     images, filenames, labels = [], [], []
     image_files = []
@@ -57,7 +47,7 @@ def load_images_and_labels(dataset_path, limit=500):
 
     return images, filenames, np.array(labels)
 
-# 4. Preprocess images
+# ✅ 2. Preprocess images
 def preprocess_images(images):
     processed_images = []
     for img in images:
@@ -66,7 +56,7 @@ def preprocess_images(images):
         processed_images.append(img_normalized)
     return np.array(processed_images)
 
-# 5. Split and save dataset
+# ✅ 3. Split and save dataset
 def split_and_save_dataset(X, y, filenames, test_size=0.2):
     X_train, X_test, y_train, y_test, train_filenames, test_filenames = train_test_split(
         X, y, filenames, test_size=test_size, random_state=42
@@ -79,12 +69,12 @@ def split_and_save_dataset(X, y, filenames, test_size=0.2):
 
     return X_train, X_test, y_train, y_test
 
-# 6. Load and preprocess
+# ✅ 4. Load and preprocess dataset
 images, filenames, labels = load_images_and_labels(dataset_path, limit=500)
 processed_images = preprocess_images(images)
 X_train, X_test, y_train, y_test = split_and_save_dataset(processed_images, labels, filenames)
 
-# 7. Model: MobileNetV2
+# ✅ 5. Build MobileNetV2 model
 base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 base_model.trainable = False
 
@@ -98,7 +88,7 @@ model = models.Sequential([
 
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-# 8. Train the model
+# ✅ 6. Train the model
 history = model.fit(
     X_train, y_train,
     validation_data=(X_test, y_test),
@@ -106,11 +96,12 @@ history = model.fit(
     batch_size=32
 )
 
-# 9. Save the trained model
-model.save("/content/skin_cancer_model.h5")
-print("✅ Model saved successfully!")
+# ✅ 7. Save the trained model
+model_path = "skin_cancer_model.h5"
+model.save(model_path)
+print(f"✅ Model saved successfully at {model_path}!")
 
-# 10. Streamlit App Interface
+# ✅ 8. Streamlit App Interface
 def streamlit_interface():
     st.title("🧪 Skin Cancer Detection (Upload Image)")
 
@@ -125,19 +116,10 @@ def streamlit_interface():
         img_input = np.expand_dims(img_array, axis=0)
 
         prediction = model.predict(img_input)
-        result = "melanoma" if prediction[0][0] > 0.5 else "Non-melanoma"
+        result = "Melanoma" if prediction[0][0] > 0.5 else "Non-melanoma"
 
         st.subheader(f"Prediction: {result}")
 
-# 11. Launch Streamlit App properly in Colab
-def run_streamlit():
-    !streamlit run /usr/local/lib/python3.11/dist-packages/colab_kernel_launcher.py --server.port 8501
-
-thread = threading.Thread(target=run_streamlit)
-thread.start()
-
-# Expose using ngrok
-public_url = ngrok.connect(addr="http://localhost:8501", proto="http")
-
-print(f"🚀 Your app is live at: {public_url}")
-
+# ✅ 9. Run Streamlit App
+if __name__ == "__main__":
+    streamlit_interface()
